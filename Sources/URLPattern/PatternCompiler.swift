@@ -124,10 +124,15 @@ private struct Parser {
                 output += parseWildcard()
                 index = source.index(after: index)
             case ":":
-                output += try parseNamedParameter(
-                    currentOutput: &output,
-                    disablePathnamePrefixing: disablePathnamePrefixing
-                )
+                if shouldParseNamedParameter() {
+                    output += try parseNamedParameter(
+                        currentOutput: &output,
+                        disablePathnamePrefixing: disablePathnamePrefixing
+                    )
+                } else {
+                    output += NSRegularExpression.escapedPattern(for: String(character))
+                    index = source.index(after: index)
+                }
             case "(":
                 output += try parseRegexGroup(
                     currentOutput: &output,
@@ -211,6 +216,23 @@ private struct Parser {
             currentOutput: &currentOutput,
             disablePathnamePrefixing: disablePathnamePrefixing
         )
+    }
+
+    private func shouldParseNamedParameter() -> Bool {
+        let next = source.index(after: index)
+        guard next < source.endIndex else {
+            return false
+        }
+
+        if index > source.startIndex {
+            let previous = source[source.index(before: index)]
+            if previous == ":" || previous == "[" {
+                return false
+            }
+        }
+
+        let character = source[next]
+        return character.isLetter || character.isNumber || character == "_" || character == "-"
     }
 
     private mutating func parseRegexGroup(

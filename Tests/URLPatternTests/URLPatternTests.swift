@@ -1,6 +1,13 @@
 import Testing
+
 @testable import URLPattern
 
-@Test func example() async throws {
-    // Write your test here and use APIs like `#expect(...)` to check expected conditions.
+@Test
+func basicPathnameMatch() throws {
+    let pattern = try URLPattern("/books/:id")
+    let result = try #require(try pattern.exec("https://example.com/books/123"))
+
+    #expect(result.pathname.groups["id"] == "123")
+    #expect(pattern.test("https://example.com/books/123"))
+    #expect(!pattern.test("https://example.com/books"))
 }

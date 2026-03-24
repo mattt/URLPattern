@@ -40,6 +40,24 @@ struct ParityConvenienceTests {
     }
 
     @Test
+    func dictionaryLiteralInput() throws {
+        let pattern = try URLPattern([
+            "protocol": "https",
+            "hostname": "example.com",
+            "pathname": "/books/:id",
+        ])
+        #expect(pattern.test("https://example.com/books/123"))
+        #expect(!pattern.test("http://example.com/books/123"))
+
+        let result = try #require(try pattern.exec("https://example.com/books/42"))
+        #expect(result.pathname.groups["id"] == "42")
+
+        let empty: URLPattern.Input = [:]
+        let wildcardPattern = try URLPattern(empty)
+        #expect(wildcardPattern.test("https://anything.test/any/path"))
+    }
+
+    @Test
     func urlPatternErrorLocalizedDescriptions() {
         #expect(URLPatternError.invalidPattern("x").errorDescription != nil)
         #expect(URLPatternError.invalidBaseURL("x").errorDescription != nil)

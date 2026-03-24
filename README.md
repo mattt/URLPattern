@@ -67,11 +67,11 @@ Match against individual URL components
 using structured `Input`:
 
 ```swift
-let pattern = try URLPattern(.init(
-    protocol: "https",
-    hostname: "*.example.com",
-    pathname: "/api/*"
-))
+let pattern = try URLPattern([
+    "protocol": "https",
+    "hostname": "*.example.com",
+    "pathname": "/api/*"
+])
 ```
 
 ### Base URL Inheritance

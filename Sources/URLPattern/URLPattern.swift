@@ -28,7 +28,7 @@ public struct URLPattern: Hashable, Sendable {
     }
 
     /// Structured initializer and match input.
-    public struct Input: Hashable, Sendable, Codable {
+    public struct Input: Hashable, Sendable, Codable, ExpressibleByDictionaryLiteral {
         /// The URL scheme component pattern, without a trailing colon.
         public var `protocol`: String?
         /// The username component pattern.
@@ -80,6 +80,23 @@ public struct URLPattern: Hashable, Sendable {
             self.search = search
             self.hash = hash
             self.baseURL = baseURL
+        }
+
+        public init(dictionaryLiteral elements: (String, String)...) {
+            for (key, value) in elements {
+                switch key {
+                case "protocol": self.protocol = value
+                case "username": self.username = value
+                case "password": self.password = value
+                case "hostname": self.hostname = value
+                case "port": self.port = value
+                case "pathname": self.pathname = value
+                case "search": self.search = value
+                case "hash": self.hash = value
+                case "baseURL": self.baseURL = value
+                default: break
+                }
+            }
         }
     }
 

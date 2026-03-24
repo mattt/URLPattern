@@ -22,6 +22,42 @@ struct CompiledComponentPattern: Sendable {
     var regex: NSRegularExpression {
         try! NSRegularExpression(pattern: regexPattern, options: regexOptions)
     }
+
+    init(compiling pattern: String, for component: URLPattern.Component, ignoreCase: Bool) throws {
+        if pattern == "*" {
+            self.regexPattern = "^([\\s\\S]*)$"
+            self.regexOptions = Self.regexOptions(for: component, ignoreCase: ignoreCase)
+            self.captures = [.init(kind: .unnamed)]
+            self.hasRegexGroups = false
+            return
+        }
+
+        var parser = Parser(source: pattern, component: component)
+        let body = try parser.parse(until: nil, disablePathnamePrefixing: false)
+        let regexPattern = "^\(body)$"
+        let options = Self.regexOptions(for: component, ignoreCase: ignoreCase)
+
+        do {
+            _ = try NSRegularExpression(pattern: regexPattern, options: options)
+        } catch {
+            throw URLPatternError.regexCompilationFailed(error.localizedDescription)
+        }
+
+        self.regexPattern = regexPattern
+        self.regexOptions = options
+        self.captures = parser.captures
+        self.hasRegexGroups = parser.hasRegexGroups
+    }
+
+    private static func regexOptions(
+        for component: URLPattern.Component,
+        ignoreCase: Bool
+    ) -> NSRegularExpression.Options {
+        if ignoreCase || component == .protocol || component == .hostname {
+            return [.caseInsensitive]
+        }
+        return []
+    }
 }
 
 extension CompiledComponentPattern: Equatable {
@@ -51,50 +87,7 @@ struct CaptureInfo: Hashable, Sendable, Codable {
     var kind: Kind
 }
 
-enum PatternCompiler {
-    static func compile(
-        component: URLPattern.Component,
-        pattern: String,
-        ignoreCase: Bool
-    ) throws -> CompiledComponentPattern {
-        if pattern == "*" {
-            return CompiledComponentPattern(
-                regexPattern: "^([\\s\\S]*)$",
-                regexOptions: regexOptions(for: component, ignoreCase: ignoreCase),
-                captures: [.init(kind: .unnamed)],
-                hasRegexGroups: false
-            )
-        }
-
-        var parser = Parser(source: pattern, component: component)
-        let body = try parser.parse(until: nil, disablePathnamePrefixing: false)
-        let regexPattern = "^\(body)$"
-        let options = regexOptions(for: component, ignoreCase: ignoreCase)
-
-        do {
-            _ = try NSRegularExpression(pattern: regexPattern, options: options)
-        } catch {
-            throw URLPatternError.regexCompilationFailed(error.localizedDescription)
-        }
-
-        return CompiledComponentPattern(
-            regexPattern: regexPattern,
-            regexOptions: options,
-            captures: parser.captures,
-            hasRegexGroups: parser.hasRegexGroups
-        )
-    }
-
-    private static func regexOptions(
-        for component: URLPattern.Component,
-        ignoreCase: Bool
-    ) -> NSRegularExpression.Options {
-        if ignoreCase || component == .protocol || component == .hostname {
-            return [.caseInsensitive]
-        }
-        return []
-    }
-}
+// MARK: - Parser
 
 private struct Parser {
     let source: String

@@ -89,27 +89,42 @@ public struct URLPattern: Hashable, Sendable {
         }
     }
 
-    public var `protocol`: String { components.patterns.protocol }
-    public var username: String { components.patterns.username }
-    public var password: String { components.patterns.password }
-    public var hostname: String { components.patterns.hostname }
-    public var port: String { components.patterns.port }
-    public var pathname: String { components.patterns.pathname }
-    public var search: String { components.patterns.search }
-    public var hash: String { components.patterns.hash }
-    public var hasRegexGroups: Bool { components.hasRegexGroups }
-    public var options: Options { components.options }
+    public var `protocol`: String { patterns.protocol }
+    public var username: String { patterns.username }
+    public var password: String { patterns.password }
+    public var hostname: String { patterns.hostname }
+    public var port: String { patterns.port }
+    public var pathname: String { patterns.pathname }
+    public var search: String { patterns.search }
+    public var hash: String { patterns.hash }
+    public let hasRegexGroups: Bool
+    public let options: Options
 
-    let components: PatternComponents
+    let patterns: URLPatternParts
+    let compiled: [Component: CompiledComponentPattern]
 
     public init(_ pattern: String, _ baseURL: String? = nil, options: Options = .init()) throws {
-        self.components = try PatternComponents(
-            patternString: pattern, baseURL: baseURL, options: options)
+        try self.init(.init(parsing: pattern, baseURL: baseURL), options: options)
     }
 
-    public init(_ pattern: Input, options: Options = .init()) throws {
-        self.components = try PatternComponents(patternInput: pattern, options: options)
+    public init(_ input: Input, options: Options = .init()) throws {
+        let parts = try URLPatternParts(forPattern: input)
+        self.patterns = parts
+        self.options = options
+
+        var compiled: [Component: CompiledComponentPattern] = [:]
+        var hasRegexGroups = false
+        for component in Component.allCases {
+            let result = try CompiledComponentPattern(
+                compiling: parts[component], for: component, ignoreCase: options.ignoreCase)
+            compiled[component] = result
+            hasRegexGroups = hasRegexGroups || result.hasRegexGroups
+        }
+        self.compiled = compiled
+        self.hasRegexGroups = hasRegexGroups
     }
+
+    // MARK: - Testing
 
     public func test(_ input: URL) -> Bool {
         (try? exec(input)) != nil
@@ -123,16 +138,28 @@ public struct URLPattern: Hashable, Sendable {
         (try? exec(input)) != nil
     }
 
+    // MARK: - Execution
+
     public func exec(_ input: URL) throws -> Result? {
-        try PatternMatcher.exec(components: components, input: .url(input))
+        let canonical = try URLPatternParts(matching: input)
+        return matchAll(against: canonical, rawInput: input.absoluteString)
     }
 
     public func exec(_ input: String, _ baseURL: String? = nil) throws -> Result? {
-        try PatternMatcher.exec(components: components, input: .string(input, baseURL: baseURL))
+        let canonical = try URLPatternParts(matching: input, baseURL: baseURL)
+        return matchAll(against: canonical, rawInput: input)
     }
 
     public func exec(_ input: Input) throws -> Result? {
-        try PatternMatcher.exec(components: components, input: .components(input))
+        let canonical = try URLPatternParts(matching: input)
+        let rawInput = [
+            input.protocol, input.username, input.password,
+            input.hostname, input.port, input.pathname,
+            input.search, input.hash,
+        ]
+        .compactMap { $0 }
+        .joined(separator: "|")
+        return matchAll(against: canonical, rawInput: rawInput)
     }
 }
 

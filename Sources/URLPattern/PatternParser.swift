@@ -1,19 +1,16 @@
 import Foundation
 
-enum PatternStringParser {
-    static func parsePatternString(_ value: String, baseURL: String?) -> URLPattern.Input {
-        let baseParsed: URLPattern.Input
-        if value.contains("://") {
-            baseParsed = parseLooseURLString(value)
+extension URLPattern.Input {
+    init(parsing patternString: String, baseURL: String?) {
+        if patternString.contains("://") {
+            self = .init(parsingLooseURL: patternString)
         } else {
-            baseParsed = URLPattern.Input(pathname: value)
+            self = .init(pathname: patternString)
         }
-        var parsed = baseParsed
-        parsed.baseURL = baseURL
-        return parsed
+        self.baseURL = baseURL
     }
 
-    static func parseLooseURLString(_ value: String) -> URLPattern.Input {
+    init(parsingLooseURL value: String) {
         var working = value
 
         var hash: String?
@@ -44,7 +41,7 @@ enum PatternStringParser {
 
             let authorityParts = parseAuthority(authority)
 
-            return URLPattern.Input(
+            self = .init(
                 protocol: scheme,
                 username: authorityParts.username,
                 password: authorityParts.password,
@@ -54,76 +51,75 @@ enum PatternStringParser {
                 search: search,
                 hash: hash
             )
+            return
         }
 
-        return URLPattern.Input(
+        self = .init(
             pathname: working.isEmpty ? "/" : working,
             search: search,
             hash: hash
         )
     }
+}
 
-    private static func parseAuthority(_ authority: String) -> (
-        username: String?, password: String?, hostname: String?, port: String?
-    ) {
-        var working = authority
-        var username: String?
-        var password: String?
+private func parseAuthority(_ authority: String) -> (
+    username: String?, password: String?, hostname: String?, port: String?
+) {
+    var working = authority
+    var username: String?
+    var password: String?
 
-        if let atIndex = working.lastIndex(of: "@") {
-            let userInfo = String(working[..<atIndex])
-            working = String(working[working.index(after: atIndex)...])
-            if let separator = userInfo.firstIndex(of: ":") {
-                username = String(userInfo[..<separator])
-                password = String(userInfo[userInfo.index(after: separator)...])
-            } else {
-                username = userInfo
-            }
+    if let atIndex = working.lastIndex(of: "@") {
+        let userInfo = String(working[..<atIndex])
+        working = String(working[working.index(after: atIndex)...])
+        if let separator = userInfo.firstIndex(of: ":") {
+            username = String(userInfo[..<separator])
+            password = String(userInfo[userInfo.index(after: separator)...])
+        } else {
+            username = userInfo
         }
-
-        if working.hasPrefix("[") {
-            if let end = working.firstIndex(of: "]") {
-                let host = String(working[...end])
-                let restStart = working.index(after: end)
-                let rest = restStart < working.endIndex ? String(working[restStart...]) : ""
-                let port = rest.hasPrefix(":") ? String(rest.dropFirst()) : nil
-                return (username, password, host, port)
-            }
-            return (username, password, working, nil)
-        }
-
-        if let separator = working.lastIndex(of: ":") {
-            let host = String(working[..<separator])
-            let possiblePort = String(working[working.index(after: separator)...])
-            if possiblePort.isEmpty == false {
-                return (username, password, host, possiblePort)
-            }
-        }
-
-        return (username, password, working.isEmpty ? nil : working, nil)
     }
 
-    private static func firstUnescapedCharacter(_ character: Character, in string: String) -> String
-        .Index?
-    {
-        var index = string.startIndex
-        while index < string.endIndex {
-            let current = string[index]
-            if current == "\\" {
-                index = string.index(after: index)
-                if index < string.endIndex {
-                    index = string.index(after: index)
-                }
-                continue
-            }
+    if working.hasPrefix("[") {
+        if let end = working.firstIndex(of: "]") {
+            let host = String(working[...end])
+            let restStart = working.index(after: end)
+            let rest = restStart < working.endIndex ? String(working[restStart...]) : ""
+            let port = rest.hasPrefix(":") ? String(rest.dropFirst()) : nil
+            return (username, password, host, port)
+        }
+        return (username, password, working, nil)
+    }
 
-            if current == character {
-                return index
-            }
+    if let separator = working.lastIndex(of: ":") {
+        let host = String(working[..<separator])
+        let possiblePort = String(working[working.index(after: separator)...])
+        if possiblePort.isEmpty == false {
+            return (username, password, host, possiblePort)
+        }
+    }
 
+    return (username, password, working.isEmpty ? nil : working, nil)
+}
+
+private func firstUnescapedCharacter(_ character: Character, in string: String) -> String.Index? {
+    var index = string.startIndex
+    while index < string.endIndex {
+        let current = string[index]
+        if current == "\\" {
             index = string.index(after: index)
+            if index < string.endIndex {
+                index = string.index(after: index)
+            }
+            continue
         }
 
-        return nil
+        if current == character {
+            return index
+        }
+
+        index = string.index(after: index)
     }
+
+    return nil
 }

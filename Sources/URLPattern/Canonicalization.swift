@@ -24,31 +24,16 @@ struct URLPatternParts: Hashable, Sendable, Codable {
     }
 }
 
-enum PatternCanonicalizer {
-    static func canonicalPatternInput(_ input: URLPattern.Input) throws -> URLPatternParts {
-        let base = try input.baseURL.map(parseBaseURL(_:))
-        let provided = normalizeInput(input)
-        return inherit(provided: provided, from: base, wildcardForMissing: "*")
+// MARK: - Canonicalization
+
+extension URLPatternParts {
+    init(forPattern input: URLPattern.Input) throws {
+        let base = try input.baseURL.map(Self.parseBaseURL)
+        let provided = Self.normalize(input)
+        self = Self.inherit(provided: provided, from: base, wildcardForMissing: "*")
     }
 
-    static func canonicalMatchInput(_ input: URLPattern.Input) throws -> URLPatternParts {
-        let base = try input.baseURL.map(parseBaseURL(_:))
-        let provided = normalizeInput(input)
-        let inherited = inherit(provided: provided, from: base, wildcardForMissing: "")
-
-        return URLPatternParts(
-            protocol: inherited.protocol.lowercased(),
-            username: inherited.username,
-            password: inherited.password,
-            hostname: inherited.hostname.lowercased(),
-            port: inherited.port,
-            pathname: inherited.pathname,
-            search: inherited.search,
-            hash: inherited.hash
-        )
-    }
-
-    static func canonicalMatchURL(_ url: URL) throws -> URLPatternParts {
+    init(matching url: URL) throws {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: true) else {
             throw URLPatternError.invalidURLInput("Could not parse URL: \(url.absoluteString)")
         }
@@ -64,7 +49,7 @@ enum PatternCanonicalizer {
                 ?? components.percentEncodedPath
         }
 
-        return URLPatternParts(
+        self.init(
             protocol: (components.scheme ?? "").lowercased(),
             username: components.percentEncodedUser.flatMap { $0.removingPercentEncoding }
                 ?? (components.user ?? ""),
@@ -80,23 +65,38 @@ enum PatternCanonicalizer {
         )
     }
 
-    static func canonicalMatchString(_ input: String, baseURL: String?) throws -> URLPatternParts {
-        if let url = URL(string: input), url.scheme != nil {
-            return try canonicalMatchURL(url)
+    init(matching string: String, baseURL: String?) throws {
+        if let url = URL(string: string), url.scheme != nil {
+            self = try .init(matching: url)
+            return
         }
 
         if let baseURL,
             let base = URL(string: baseURL),
-            let resolved = URL(string: input, relativeTo: base)?.absoluteURL
+            let resolved = URL(string: string, relativeTo: base)?.absoluteURL
         {
-            return try canonicalMatchURL(resolved)
+            self = try .init(matching: resolved)
+            return
         }
 
-        let loose = PatternStringParser.parseLooseURLString(input)
-        return try canonicalMatchInput(loose)
+        let loose = URLPattern.Input(parsingLooseURL: string)
+        try self.init(matching: loose)
     }
 
-    private static func normalizeInput(_ input: URLPattern.Input) -> URLPattern.Input {
+    init(matching input: URLPattern.Input) throws {
+        let base = try input.baseURL.map(Self.parseBaseURL)
+        let provided = Self.normalize(input)
+        var parts = Self.inherit(provided: provided, from: base, wildcardForMissing: "")
+        parts.protocol = parts.protocol.lowercased()
+        parts.hostname = parts.hostname.lowercased()
+        self = parts
+    }
+}
+
+// MARK: - Private Helpers
+
+extension URLPatternParts {
+    private static func normalize(_ input: URLPattern.Input) -> URLPattern.Input {
         URLPattern.Input(
             protocol: normalizeProtocol(input.protocol),
             username: input.username,
@@ -179,6 +179,7 @@ enum PatternCanonicalizer {
             }
         }
 
+        // WHATWG: credentials do not inherit from base URL.
         let username = provided.username ?? wildcardForMissing
         let password = provided.password ?? wildcardForMissing
 
@@ -194,12 +195,11 @@ enum PatternCanonicalizer {
         )
     }
 
-    private static func parseBaseURL(_ value: String) throws -> URLPatternParts {
+    fileprivate static func parseBaseURL(_ value: String) throws -> URLPatternParts {
         guard let url = URL(string: value) else {
             throw URLPatternError.invalidBaseURL(value)
         }
-
-        return try canonicalMatchURL(url)
+        return try .init(matching: url)
     }
 
     private static func normalizeProtocol(_ value: String?) -> String? {

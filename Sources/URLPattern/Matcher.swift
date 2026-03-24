@@ -1,53 +1,20 @@
 import Foundation
 
-enum PatternMatcher {
-    enum Input {
-        case url(URL)
-        case string(String, baseURL: String?)
-        case components(URLPattern.Input)
-    }
-
-    static func exec(components: PatternComponents, input: Input) throws -> URLPattern.Result? {
-        let canonicalInput: URLPatternParts
-        let rawInput: String
-
-        switch input {
-        case .url(let url):
-            canonicalInput = try PatternCanonicalizer.canonicalMatchURL(url)
-            rawInput = url.absoluteString
-        case .string(let string, let baseURL):
-            canonicalInput = try PatternCanonicalizer.canonicalMatchString(
-                string, baseURL: baseURL)
-            rawInput = string
-        case .components(let input):
-            canonicalInput = try PatternCanonicalizer.canonicalMatchInput(input)
-            rawInput = [
-                input.protocol,
-                input.username,
-                input.password,
-                input.hostname,
-                input.port,
-                input.pathname,
-                input.search,
-                input.hash,
-            ]
-            .compactMap { $0 }
-            .joined(separator: "|")
-        }
-
-        var results: [URLPattern.Component: URLPattern.ComponentResult] = [:]
-        for component in URLPattern.Component.allCases {
-            guard
-                let result = match(
-                    components.compiled(component),
-                    against: canonicalInput[component])
+extension URLPattern {
+    func matchAll(
+        against canonical: URLPatternParts,
+        rawInput: String
+    ) -> Result? {
+        var results: [Component: ComponentResult] = [:]
+        for component in Component.allCases {
+            guard let result = Self.match(compiled[component]!, against: canonical[component])
             else {
                 return nil
             }
             results[component] = result
         }
 
-        return URLPattern.Result(
+        return Result(
             inputs: [rawInput],
             protocol: results[.protocol]!,
             username: results[.username]!,
@@ -60,9 +27,10 @@ enum PatternMatcher {
         )
     }
 
-    private static func match(_ compiled: CompiledComponentPattern, against value: String)
-        -> URLPattern.ComponentResult?
-    {
+    private static func match(
+        _ compiled: CompiledComponentPattern,
+        against value: String
+    ) -> ComponentResult? {
         let nsString = value as NSString
         let range = NSRange(location: 0, length: nsString.length)
         guard let result = compiled.regex.firstMatch(in: value, options: [], range: range) else {
@@ -95,6 +63,6 @@ enum PatternMatcher {
             }
         }
 
-        return URLPattern.ComponentResult(input: value, groups: groups)
+        return ComponentResult(input: value, groups: groups)
     }
 }

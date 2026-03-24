@@ -9,28 +9,32 @@ struct URLPatternParts: Hashable, Sendable, Codable {
     var pathname: String
     var search: String
     var hash: String
+
+    subscript(component: URLPattern.Component) -> String {
+        switch component {
+        case .protocol: self.protocol
+        case .username: username
+        case .password: password
+        case .hostname: hostname
+        case .port: port
+        case .pathname: pathname
+        case .search: search
+        case .hash: hash
+        }
+    }
 }
 
-enum URLPatternCanonicalizer {
+enum PatternCanonicalizer {
     static func canonicalPatternInput(_ input: URLPattern.Input) throws -> URLPatternParts {
         let base = try input.baseURL.map(parseBaseURL(_:))
-
         let provided = normalizeInput(input)
-        return inherit(
-            provided: provided,
-            from: base,
-            wildcardForMissing: "*"
-        )
+        return inherit(provided: provided, from: base, wildcardForMissing: "*")
     }
 
     static func canonicalMatchInput(_ input: URLPattern.Input) throws -> URLPatternParts {
         let base = try input.baseURL.map(parseBaseURL(_:))
         let provided = normalizeInput(input)
-        let inherited = inherit(
-            provided: provided,
-            from: base,
-            wildcardForMissing: ""
-        )
+        let inherited = inherit(provided: provided, from: base, wildcardForMissing: "")
 
         return URLPatternParts(
             protocol: inherited.protocol.lowercased(),
@@ -88,8 +92,7 @@ enum URLPatternCanonicalizer {
             return try canonicalMatchURL(resolved)
         }
 
-        // Fallback to loose parsing for pathname-only matching.
-        let loose = URLPatternStringParser.parseLooseURLString(input)
+        let loose = PatternStringParser.parseLooseURLString(input)
         return try canonicalMatchInput(loose)
     }
 
@@ -98,8 +101,8 @@ enum URLPatternCanonicalizer {
             protocol: normalizeProtocol(input.protocol),
             username: input.username,
             password: input.password,
-            hostname: normalizeHostname(input.hostname),
-            port: normalizePort(input.port),
+            hostname: input.hostname,
+            port: input.port,
             pathname: normalizePathname(input.pathname),
             search: normalizeSearch(input.search),
             hash: normalizeHash(input.hash),
@@ -125,10 +128,10 @@ enum URLPatternCanonicalizer {
             )
         }
 
-        let specificity: [URLPatternComponent] = [
+        let specificity: [URLPattern.Component] = [
             .protocol, .hostname, .port, .pathname, .search, .hash,
         ]
-        let providedMap: [URLPatternComponent: String?] = [
+        let providedMap: [URLPattern.Component: String?] = [
             .protocol: provided.protocol,
             .hostname: provided.hostname,
             .port: provided.port,
@@ -136,7 +139,7 @@ enum URLPatternCanonicalizer {
             .search: provided.search,
             .hash: provided.hash,
         ]
-        let baseMap: [URLPatternComponent: String] = [
+        let baseMap: [URLPattern.Component: String] = [
             .protocol: base.protocol,
             .hostname: base.hostname,
             .port: base.port,
@@ -152,7 +155,7 @@ enum URLPatternCanonicalizer {
             return false
         }
 
-        var inheritedMain: [URLPatternComponent: String] = [:]
+        var inheritedMain: [URLPattern.Component: String] = [:]
         for (index, component) in specificity.enumerated() {
             switch providedMap[component] {
             case .some(let value?):
@@ -176,7 +179,6 @@ enum URLPatternCanonicalizer {
             }
         }
 
-        // WHATWG behavior: credentials do not inherit from base URL.
         let username = provided.username ?? wildcardForMissing
         let password = provided.password ?? wildcardForMissing
 
@@ -206,14 +208,6 @@ enum URLPatternCanonicalizer {
             value.removeLast()
         }
         return value
-    }
-
-    private static func normalizeHostname(_ value: String?) -> String? {
-        value
-    }
-
-    private static func normalizePort(_ value: String?) -> String? {
-        value
     }
 
     private static func normalizePathname(_ value: String?) -> String? {

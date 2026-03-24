@@ -1,6 +1,6 @@
 import Foundation
 
-enum URLPatternStringParser {
+enum PatternStringParser {
     static func parsePatternString(_ value: String, baseURL: String?) -> URLPattern.Input {
         let baseParsed: URLPattern.Input
         if value.contains("://") {

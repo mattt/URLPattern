@@ -89,15 +89,15 @@ public struct URLPattern: Hashable, Sendable {
         }
     }
 
-    public var `protocol`: String { components.protocolPattern }
-    public var username: String { components.usernamePattern }
-    public var password: String { components.passwordPattern }
-    public var hostname: String { components.hostnamePattern }
-    public var port: String { components.portPattern }
-    public var pathname: String { components.pathnamePattern }
-    public var search: String { components.searchPattern }
-    public var hash: String { components.hashPattern }
-    public var hasRegExpGroups: Bool { components.hasRegExpGroups }
+    public var `protocol`: String { components.patterns.protocol }
+    public var username: String { components.patterns.username }
+    public var password: String { components.patterns.password }
+    public var hostname: String { components.patterns.hostname }
+    public var port: String { components.patterns.port }
+    public var pathname: String { components.patterns.pathname }
+    public var search: String { components.patterns.search }
+    public var hash: String { components.patterns.hash }
+    public var hasRegexGroups: Bool { components.hasRegexGroups }
     public var options: Options { components.options }
 
     let components: PatternComponents
@@ -124,15 +124,15 @@ public struct URLPattern: Hashable, Sendable {
     }
 
     public func exec(_ input: URL) throws -> Result? {
-        try URLPatternMatcher.exec(components: components, input: .url(input))
+        try PatternMatcher.exec(components: components, input: .url(input))
     }
 
     public func exec(_ input: String, _ baseURL: String? = nil) throws -> Result? {
-        try URLPatternMatcher.exec(components: components, input: .string(input, baseURL: baseURL))
+        try PatternMatcher.exec(components: components, input: .string(input, baseURL: baseURL))
     }
 
     public func exec(_ input: Input) throws -> Result? {
-        try URLPatternMatcher.exec(components: components, input: .components(input))
+        try PatternMatcher.exec(components: components, input: .components(input))
     }
 }
 

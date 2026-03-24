@@ -1,6 +1,6 @@
 import Foundation
 
-enum URLPatternMatcher {
+enum PatternMatcher {
     enum Input {
         case url(URL)
         case string(String, baseURL: String?)
@@ -13,14 +13,14 @@ enum URLPatternMatcher {
 
         switch input {
         case .url(let url):
-            canonicalInput = try URLPatternCanonicalizer.canonicalMatchURL(url)
+            canonicalInput = try PatternCanonicalizer.canonicalMatchURL(url)
             rawInput = url.absoluteString
         case .string(let string, let baseURL):
-            canonicalInput = try URLPatternCanonicalizer.canonicalMatchString(
+            canonicalInput = try PatternCanonicalizer.canonicalMatchString(
                 string, baseURL: baseURL)
             rawInput = string
         case .components(let input):
-            canonicalInput = try URLPatternCanonicalizer.canonicalMatchInput(input)
+            canonicalInput = try PatternCanonicalizer.canonicalMatchInput(input)
             rawInput = [
                 input.protocol,
                 input.username,
@@ -35,34 +35,28 @@ enum URLPatternMatcher {
             .joined(separator: "|")
         }
 
-        guard
-            let protocolResult = match(
-                components.compiled(.protocol), against: canonicalInput.protocol),
-            let usernameResult = match(
-                components.compiled(.username), against: canonicalInput.username),
-            let passwordResult = match(
-                components.compiled(.password), against: canonicalInput.password),
-            let hostnameResult = match(
-                components.compiled(.hostname), against: canonicalInput.hostname),
-            let portResult = match(components.compiled(.port), against: canonicalInput.port),
-            let pathnameResult = match(
-                components.compiled(.pathname), against: canonicalInput.pathname),
-            let searchResult = match(components.compiled(.search), against: canonicalInput.search),
-            let hashResult = match(components.compiled(.hash), against: canonicalInput.hash)
-        else {
-            return nil
+        var results: [URLPattern.Component: URLPattern.ComponentResult] = [:]
+        for component in URLPattern.Component.allCases {
+            guard
+                let result = match(
+                    components.compiled(component),
+                    against: canonicalInput[component])
+            else {
+                return nil
+            }
+            results[component] = result
         }
 
         return URLPattern.Result(
             inputs: [rawInput],
-            protocol: protocolResult,
-            username: usernameResult,
-            password: passwordResult,
-            hostname: hostnameResult,
-            port: portResult,
-            pathname: pathnameResult,
-            search: searchResult,
-            hash: hashResult
+            protocol: results[.protocol]!,
+            username: results[.username]!,
+            password: results[.password]!,
+            hostname: results[.hostname]!,
+            port: results[.port]!,
+            pathname: results[.pathname]!,
+            search: results[.search]!,
+            hash: results[.hash]!
         )
     }
 

@@ -16,11 +16,11 @@ struct PatternComponentsTests {
     }
 
     @Test
-    func hasRegExpGroupsTracksRegexUsage() throws {
+    func hasRegexGroupsTracksRegexUsage() throws {
         let withRegex = try makePattern("/books/:id(\\d+)")
         let withoutRegex = try makePattern("/books/:id")
 
-        #expect(withRegex.hasRegExpGroups)
-        #expect(!withoutRegex.hasRegExpGroups)
+        #expect(withRegex.hasRegexGroups)
+        #expect(!withoutRegex.hasRegexGroups)
     }
 }

@@ -9,7 +9,7 @@ struct SyntaxTests {
         let named = try makePattern("/books/:id(\\d+)")
         #expect(named.test("https://example.com/books/123"))
         #expect(!named.test("https://example.com/books/abc"))
-        #expect(named.hasRegExpGroups)
+        #expect(named.hasRegexGroups)
     }
 
     @Test

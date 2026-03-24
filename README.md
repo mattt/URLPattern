@@ -7,6 +7,10 @@ Match URLs against patterns with named groups, wildcards,
 and component-level control —
 using the same syntax defined by the web standard.
 
+## Requirements
+
+- Swift 6.0+
+
 ## Installation
 
 Add this package to your `Package.swift`:
@@ -120,4 +124,5 @@ Patterns decode from a plain string or a keyed object:
 
 ## License
 
-MIT
+This project is available under the MIT license.
+See the LICENSE file for more info.

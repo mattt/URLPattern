@@ -195,9 +195,18 @@ private struct Parser {
         }
 
         let rawName = String(source[nameStart..<index])
-        let name = sanitizeCaptureName(rawName)
+        var sanitizedName = rawName.map { character -> Character in
+            if character.isLetter || character.isNumber || character == "_" {
+                return character
+            }
+            return "_"
+        }
+        if let first = sanitizedName.first, first.isNumber {
+            sanitizedName.insert("_", at: sanitizedName.startIndex)
+        }
+        let name = String(sanitizedName)
 
-        var innerPattern = defaultPatternForComponent(component)
+        var innerPattern = component.defaultPattern
         if index < source.endIndex, source[index] == "(" {
             hasRegexGroups = true
             innerPattern = try parseRawRegexBody()
@@ -349,30 +358,16 @@ private struct Parser {
     }
 }
 
-/// Returns the default inner regex for captures in the given component.
-private func defaultPatternForComponent(_ component: URLPattern.Component) -> String {
-    switch component {
-    case .pathname:
-        return "[^/]+"
-    case .hostname:
-        return "[^.]+"
-    default:
-        return "[\\s\\S]+"
-    }
-}
-
-/// Converts a capture name into a regex-compatible identifier.
-private func sanitizeCaptureName(_ name: String) -> String {
-    var sanitized = name.map { character -> Character in
-        if character.isLetter || character.isNumber || character == "_" {
-            return character
+extension URLPattern.Component {
+    /// The default inner regex used for this component's captures.
+    fileprivate var defaultPattern: String {
+        switch self {
+        case .pathname:
+            return "[^/]+"
+        case .hostname:
+            return "[^.]+"
+        default:
+            return "[\\s\\S]+"
         }
-        return "_"
     }
-
-    if let first = sanitized.first, first.isNumber {
-        sanitized.insert("_", at: sanitized.startIndex)
-    }
-
-    return String(sanitized)
 }

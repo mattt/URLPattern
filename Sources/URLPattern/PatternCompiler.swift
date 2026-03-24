@@ -4,39 +4,41 @@ import Foundation
 struct CompiledComponentPattern: Sendable {
     var regexPattern: String
     var regexOptions: NSRegularExpression.Options
+    let regex: NSRegularExpression
     var captures: [CaptureInfo]
     var hasRegexGroups: Bool
 
-    /// Returns the compiled regular expression for this component pattern.
-    var regex: NSRegularExpression {
-        try! NSRegularExpression(pattern: regexPattern, options: regexOptions)
-    }
-
     /// Compiles a component pattern string into a regular-expression matcher.
     init(compiling pattern: String, for component: URLPattern.Component, ignoreCase: Bool) throws {
+        let regexPattern: String
+        let regexOptions = Self.regexOptions(for: component, ignoreCase: ignoreCase)
+        let captures: [CaptureInfo]
+        let hasRegexGroups: Bool
+
         if pattern == "*" {
-            self.regexPattern = "^([\\s\\S]*)$"
-            self.regexOptions = Self.regexOptions(for: component, ignoreCase: ignoreCase)
-            self.captures = [.init(kind: .unnamed)]
-            self.hasRegexGroups = false
-            return
+            regexPattern = "^([\\s\\S]*)$"
+            captures = [.init(kind: .unnamed)]
+            hasRegexGroups = false
+        } else {
+            var parser = Parser(source: pattern, component: component)
+            let body = try parser.parse(until: nil, disablePathnamePrefixing: false)
+            regexPattern = "^\(body)$"
+            captures = parser.captures
+            hasRegexGroups = parser.hasRegexGroups
         }
 
-        var parser = Parser(source: pattern, component: component)
-        let body = try parser.parse(until: nil, disablePathnamePrefixing: false)
-        let regexPattern = "^\(body)$"
-        let options = Self.regexOptions(for: component, ignoreCase: ignoreCase)
-
+        let regex: NSRegularExpression
         do {
-            _ = try NSRegularExpression(pattern: regexPattern, options: options)
+            regex = try NSRegularExpression(pattern: regexPattern, options: regexOptions)
         } catch {
             throw URLPatternError.regexCompilationFailed(error.localizedDescription)
         }
 
         self.regexPattern = regexPattern
-        self.regexOptions = options
-        self.captures = parser.captures
-        self.hasRegexGroups = parser.hasRegexGroups
+        self.regexOptions = regexOptions
+        self.regex = regex
+        self.captures = captures
+        self.hasRegexGroups = hasRegexGroups
     }
 
     private static func regexOptions(

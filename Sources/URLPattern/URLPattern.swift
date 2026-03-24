@@ -224,7 +224,10 @@ public struct URLPattern: Hashable, Sendable {
         var hasRegexGroups = false
         for component in Component.allCases {
             let result = try CompiledComponentPattern(
-                compiling: parts[component], for: component, ignoreCase: options.ignoreCase)
+                compiling: parts[component],
+                for: component,
+                ignoreCase: options.ignoreCase
+            )
             compiled[component] = result
             hasRegexGroups = hasRegexGroups || result.hasRegexGroups
         }

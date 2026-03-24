@@ -32,8 +32,12 @@ struct CanonicalizationTests {
     func protocolSearchHashAndEmptyPathNormalize() throws {
         let pattern = try URLPattern(
             .init(
-                protocol: "https:", hostname: "example.com", pathname: "", search: "?q=1",
-                hash: "#top")
+                protocol: "https:",
+                hostname: "example.com",
+                pathname: "",
+                search: "?q=1",
+                hash: "#top"
+            )
         )
 
         #expect(pattern.protocol == "https")

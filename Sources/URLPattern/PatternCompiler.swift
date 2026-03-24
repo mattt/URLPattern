@@ -196,7 +196,7 @@ private struct Parser {
             throw URLPatternError.invalidPattern("Expected parameter name after ':'.")
         }
 
-        let rawName = String(source[nameStart..<index])
+        let rawName = String(source[nameStart ..< index])
         var sanitizedName = rawName.map { character -> Character in
             if character.isLetter || character.isNumber || character == "_" {
                 return character

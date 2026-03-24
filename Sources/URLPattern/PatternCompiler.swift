@@ -1,18 +1,5 @@
 import Foundation
 
-extension URLPattern {
-    enum Component: String, CaseIterable, Sendable, Codable {
-        case `protocol`
-        case username
-        case password
-        case hostname
-        case port
-        case pathname
-        case search
-        case hash
-    }
-}
-
 struct CompiledComponentPattern: Sendable {
     var regexPattern: String
     var regexOptions: NSRegularExpression.Options

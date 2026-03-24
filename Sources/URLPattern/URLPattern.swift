@@ -2,9 +2,14 @@ import Foundation
 
 /// A URL matcher based on the WHATWG URL Pattern API.
 public struct URLPattern: Hashable, Sendable {
+    /// Options that control URL pattern compilation and matching behavior.
     public struct Options: Hashable, Sendable, Codable {
+        /// A Boolean value that indicates whether matching ignores letter case.
         public var ignoreCase: Bool
 
+        /// Creates options for URL pattern matching.
+        ///
+        /// - Parameter ignoreCase: A Boolean value that indicates whether matching ignores letter case.
         public init(ignoreCase: Bool = false) {
             self.ignoreCase = ignoreCase
         }
@@ -23,16 +28,37 @@ public struct URLPattern: Hashable, Sendable {
 
     /// Structured initializer and match input.
     public struct Input: Hashable, Sendable, Codable {
+        /// The URL scheme component pattern, without a trailing colon.
         public var `protocol`: String?
+        /// The username component pattern.
         public var username: String?
+        /// The password component pattern.
         public var password: String?
+        /// The hostname component pattern.
         public var hostname: String?
+        /// The port component pattern.
         public var port: String?
+        /// The pathname component pattern.
         public var pathname: String?
+        /// The search component pattern, without a leading question mark.
         public var search: String?
+        /// The hash component pattern, without a leading number sign.
         public var hash: String?
+        /// The optional base URL used to resolve and inherit missing components.
         public var baseURL: String?
 
+        /// Creates a structured pattern input value.
+        ///
+        /// - Parameters:
+        ///   - protocol: The URL scheme component pattern, without a trailing colon.
+        ///   - username: The username component pattern.
+        ///   - password: The password component pattern.
+        ///   - hostname: The hostname component pattern.
+        ///   - port: The port component pattern.
+        ///   - pathname: The pathname component pattern.
+        ///   - search: The search component pattern, without a leading question mark.
+        ///   - hash: The hash component pattern, without a leading number sign.
+        ///   - baseURL: The optional base URL used to resolve and inherit missing components.
         public init(
             protocol: String? = nil,
             username: String? = nil,
@@ -56,27 +82,57 @@ public struct URLPattern: Hashable, Sendable {
         }
     }
 
+    /// The match result for one URL component.
     public struct ComponentResult: Hashable, Sendable, Codable {
+        /// The full input value that matched this component.
         public var input: String
+        /// Captured group values keyed by group name or by numeric string index.
         public var groups: [String: String]
 
+        /// Creates a component match result.
+        ///
+        /// - Parameters:
+        ///   - input: The full input value that matched this component.
+        ///   - groups: Captured group values keyed by group name or by numeric string index.
         public init(input: String, groups: [String: String]) {
             self.input = input
             self.groups = groups
         }
     }
 
+    /// The complete match result across all URL components.
     public struct Result: Hashable, Sendable, Codable {
+        /// The original raw input strings used to attempt the match.
         public var inputs: [String]
+        /// The match result for the protocol component.
         public var `protocol`: ComponentResult
+        /// The match result for the username component.
         public var username: ComponentResult
+        /// The match result for the password component.
         public var password: ComponentResult
+        /// The match result for the hostname component.
         public var hostname: ComponentResult
+        /// The match result for the port component.
         public var port: ComponentResult
+        /// The match result for the pathname component.
         public var pathname: ComponentResult
+        /// The match result for the search component.
         public var search: ComponentResult
+        /// The match result for the hash component.
         public var hash: ComponentResult
 
+        /// Creates a complete URL pattern match result.
+        ///
+        /// - Parameters:
+        ///   - inputs: The original raw input strings used to attempt the match.
+        ///   - protocol: The match result for the protocol component.
+        ///   - username: The match result for the username component.
+        ///   - password: The match result for the password component.
+        ///   - hostname: The match result for the hostname component.
+        ///   - port: The match result for the port component.
+        ///   - pathname: The match result for the pathname component.
+        ///   - search: The match result for the search component.
+        ///   - hash: The match result for the hash component.
         public init(
             inputs: [String],
             protocol: ComponentResult,
@@ -100,24 +156,47 @@ public struct URLPattern: Hashable, Sendable {
         }
     }
 
+    /// The protocol pattern string.
     public var `protocol`: String { patterns.protocol }
+    /// The username pattern string.
     public var username: String { patterns.username }
+    /// The password pattern string.
     public var password: String { patterns.password }
+    /// The hostname pattern string.
     public var hostname: String { patterns.hostname }
+    /// The port pattern string.
     public var port: String { patterns.port }
+    /// The pathname pattern string.
     public var pathname: String { patterns.pathname }
+    /// The search pattern string.
     public var search: String { patterns.search }
+    /// The hash pattern string.
     public var hash: String { patterns.hash }
+    /// A Boolean value that indicates whether any component includes regex groups.
     public let hasRegexGroups: Bool
+    /// The options used to compile this pattern.
     public let options: Options
 
     let patterns: URLPatternParts
     let compiled: [Component: CompiledComponentPattern]
 
+    /// Creates a pattern from a pattern string and optional base URL.
+    ///
+    /// - Parameters:
+    ///   - pattern: The URL pattern string to parse and compile.
+    ///   - baseURL: An optional base URL used to resolve relative input components.
+    ///   - options: Options that control matching behavior.
+    /// - Throws: `URLPatternError` when parsing or compilation fails.
     public init(_ pattern: String, _ baseURL: String? = nil, options: Options = .init()) throws {
         try self.init(.init(parsing: pattern, baseURL: baseURL), options: options)
     }
 
+    /// Creates a pattern from structured component input.
+    ///
+    /// - Parameters:
+    ///   - input: Structured URL component patterns.
+    ///   - options: Options that control matching behavior.
+    /// - Throws: `URLPatternError` when normalization or compilation fails.
     public init(_ input: Input, options: Options = .init()) throws {
         let parts = try URLPatternParts(forPattern: input)
         self.patterns = parts
@@ -137,30 +216,61 @@ public struct URLPattern: Hashable, Sendable {
 
     // MARK: - Testing
 
+    /// Returns whether this pattern matches the given URL.
+    ///
+    /// - Parameter input: The URL to test.
+    /// - Returns: `true` when the URL matches this pattern; otherwise, `false`.
     public func test(_ input: URL) -> Bool {
         (try? exec(input)) != nil
     }
 
+    /// Returns whether this pattern matches the given URL string.
+    ///
+    /// - Parameters:
+    ///   - input: The URL string to test.
+    ///   - baseURL: An optional base URL used to resolve relative URL strings.
+    /// - Returns: `true` when the URL string matches this pattern; otherwise, `false`.
     public func test(_ input: String, _ baseURL: String? = nil) -> Bool {
         (try? exec(input, baseURL)) != nil
     }
 
+    /// Returns whether this pattern matches the given structured input.
+    ///
+    /// - Parameter input: Structured URL components to test.
+    /// - Returns: `true` when the input matches this pattern; otherwise, `false`.
     public func test(_ input: Input) -> Bool {
         (try? exec(input)) != nil
     }
 
     // MARK: - Execution
 
+    /// Executes this pattern against the given URL.
+    ///
+    /// - Parameter input: The URL to match.
+    /// - Returns: A match result when the URL matches; otherwise, `nil`.
+    /// - Throws: `URLPatternError` when input canonicalization fails.
     public func exec(_ input: URL) throws -> Result? {
         let canonical = try URLPatternParts(matching: input)
         return matchAll(against: canonical, rawInput: input.absoluteString)
     }
 
+    /// Executes this pattern against the given URL string.
+    ///
+    /// - Parameters:
+    ///   - input: The URL string to match.
+    ///   - baseURL: An optional base URL used to resolve relative URL strings.
+    /// - Returns: A match result when the URL string matches; otherwise, `nil`.
+    /// - Throws: `URLPatternError` when URL parsing or canonicalization fails.
     public func exec(_ input: String, _ baseURL: String? = nil) throws -> Result? {
         let canonical = try URLPatternParts(matching: input, baseURL: baseURL)
         return matchAll(against: canonical, rawInput: input)
     }
 
+    /// Executes this pattern against structured URL components.
+    ///
+    /// - Parameter input: Structured URL components to match.
+    /// - Returns: A match result when the input matches; otherwise, `nil`.
+    /// - Throws: `URLPatternError` when canonicalization fails.
     public func exec(_ input: Input) throws -> Result? {
         let canonical = try URLPatternParts(matching: input)
         let rawInput = [
@@ -246,6 +356,7 @@ extension URLPattern {
 // MARK: - Input Parsing
 
 extension URLPattern.Input {
+    /// Parses a pattern string into structured URL pattern input.
     init(parsing patternString: String, baseURL: String?) {
         if patternString.contains("://") {
             self = .init(parsingLooseURL: patternString)
@@ -255,6 +366,7 @@ extension URLPattern.Input {
         self.baseURL = baseURL
     }
 
+    /// Parses a URL-like value into structured components without strict URL validation.
     init(parsingLooseURL value: String) {
         var working = value
 
@@ -307,6 +419,7 @@ extension URLPattern.Input {
     }
 }
 
+/// Parses authority text into userinfo, host, and port components.
 private func parseAuthority(_ authority: String) -> (
     username: String?, password: String?, hostname: String?, port: String?
 ) {
@@ -347,6 +460,7 @@ private func parseAuthority(_ authority: String) -> (
     return (username, password, working.isEmpty ? nil : working, nil)
 }
 
+/// Returns the first unescaped occurrence of a character in a string.
 private func firstUnescapedCharacter(_ character: Character, in string: String) -> String.Index? {
     var index = string.startIndex
     while index < string.endIndex {
@@ -440,10 +554,12 @@ extension URLPattern: ExpressibleByStringLiteral {
 
 // MARK: - Pattern Matching
 
+/// Returns whether a URL matches a URL pattern.
 public func ~= (lhs: URLPattern, rhs: URL) -> Bool {
     lhs.test(rhs)
 }
 
+/// Returns whether a URL string matches a URL pattern.
 public func ~= (lhs: URLPattern, rhs: String) -> Bool {
     lhs.test(rhs)
 }

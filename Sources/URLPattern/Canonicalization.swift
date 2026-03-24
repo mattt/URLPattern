@@ -1,5 +1,6 @@
 import Foundation
 
+/// Canonical URL component values used for pattern compilation and matching.
 struct URLPatternParts: Hashable, Sendable, Codable {
     var `protocol`: String
     var username: String
@@ -10,6 +11,7 @@ struct URLPatternParts: Hashable, Sendable, Codable {
     var search: String
     var hash: String
 
+    /// Returns the value stored for the given URL pattern component.
     subscript(component: URLPattern.Component) -> String {
         switch component {
         case .protocol: self.protocol
@@ -27,12 +29,14 @@ struct URLPatternParts: Hashable, Sendable, Codable {
 // MARK: - Canonicalization
 
 extension URLPatternParts {
+    /// Creates canonical pattern components from user-supplied pattern input.
     init(forPattern input: URLPattern.Input) throws {
         let base = try input.baseURL.map(Self.parseBaseURL)
         let provided = Self.normalize(input)
         self = Self.inherit(provided: provided, from: base, wildcardForMissing: "*")
     }
 
+    /// Creates canonical matching components from a concrete URL.
     init(matching url: URL) throws {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: true) else {
             throw URLPatternError.invalidURLInput("Could not parse URL: \(url.absoluteString)")
@@ -65,6 +69,7 @@ extension URLPatternParts {
         )
     }
 
+    /// Creates canonical matching components from a URL string and optional base URL.
     init(matching string: String, baseURL: String?) throws {
         if let url = URL(string: string), url.scheme != nil {
             self = try .init(matching: url)
@@ -83,6 +88,7 @@ extension URLPatternParts {
         try self.init(matching: loose)
     }
 
+    /// Creates canonical matching components from structured URL input.
     init(matching input: URLPattern.Input) throws {
         let base = try input.baseURL.map(Self.parseBaseURL)
         let provided = Self.normalize(input)
@@ -96,6 +102,7 @@ extension URLPatternParts {
 // MARK: - Private Helpers
 
 extension URLPatternParts {
+    /// Normalizes input fields to the canonical form used by matching and compilation.
     private static func normalize(_ input: URLPattern.Input) -> URLPattern.Input {
         URLPattern.Input(
             protocol: normalizeProtocol(input.protocol),
@@ -110,6 +117,7 @@ extension URLPatternParts {
         )
     }
 
+    /// Inherits unspecified components from a base URL when allowed by component specificity.
     private static func inherit(
         provided: URLPattern.Input,
         from base: URLPatternParts?,
@@ -195,6 +203,7 @@ extension URLPatternParts {
         )
     }
 
+    /// Parses and canonicalizes a base URL string into component parts.
     fileprivate static func parseBaseURL(_ value: String) throws -> URLPatternParts {
         guard let url = URL(string: value) else {
             throw URLPatternError.invalidBaseURL(value)
@@ -202,6 +211,7 @@ extension URLPatternParts {
         return try .init(matching: url)
     }
 
+    /// Normalizes a protocol value by removing a trailing colon.
     private static func normalizeProtocol(_ value: String?) -> String? {
         guard var value else { return nil }
         if value.hasSuffix(":") {
@@ -210,6 +220,7 @@ extension URLPatternParts {
         return value
     }
 
+    /// Normalizes a pathname value and maps an empty path to `/`.
     private static func normalizePathname(_ value: String?) -> String? {
         guard let value else { return nil }
         if value.isEmpty {
@@ -218,6 +229,7 @@ extension URLPatternParts {
         return value
     }
 
+    /// Normalizes a search value by removing a leading question mark.
     private static func normalizeSearch(_ value: String?) -> String? {
         guard var value else { return nil }
         if value.hasPrefix("?") {
@@ -226,6 +238,7 @@ extension URLPatternParts {
         return value
     }
 
+    /// Normalizes a hash value by removing a leading number sign.
     private static func normalizeHash(_ value: String?) -> String? {
         guard var value else { return nil }
         if value.hasPrefix("#") {

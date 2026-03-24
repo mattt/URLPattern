@@ -1,15 +1,18 @@
 import Foundation
 
+/// A compiled regular-expression representation of one URL pattern component.
 struct CompiledComponentPattern: Sendable {
     var regexPattern: String
     var regexOptions: NSRegularExpression.Options
     var captures: [CaptureInfo]
     var hasRegexGroups: Bool
 
+    /// Returns the compiled regular expression for this component pattern.
     var regex: NSRegularExpression {
         try! NSRegularExpression(pattern: regexPattern, options: regexOptions)
     }
 
+    /// Compiles a component pattern string into a regular-expression matcher.
     init(compiling pattern: String, for component: URLPattern.Component, ignoreCase: Bool) throws {
         if pattern == "*" {
             self.regexPattern = "^([\\s\\S]*)$"
@@ -65,9 +68,13 @@ extension CompiledComponentPattern: Hashable {
     }
 }
 
+/// Metadata describing one capture group in a compiled component pattern.
 struct CaptureInfo: Hashable, Sendable, Codable {
+    /// The kind of capture produced by the parser.
     enum Kind: Hashable, Sendable, Codable {
+        /// A named capture group.
         case named(String)
+        /// An unnamed capture group.
         case unnamed
     }
 
@@ -83,12 +90,14 @@ private struct Parser {
     var captures: [CaptureInfo] = []
     private(set) var hasRegexGroups = false
 
+    /// Creates a parser for one component pattern source string.
     init(source: String, component: URLPattern.Component) {
         self.source = source
         self.component = component
         self.index = source.startIndex
     }
 
+    /// Parses pattern syntax into a regular-expression fragment.
     mutating func parse(until endDelimiter: Character?, disablePathnamePrefixing: Bool) throws
         -> String
     {
@@ -158,11 +167,13 @@ private struct Parser {
         return NSRegularExpression.escapedPattern(for: String(escaped))
     }
 
+    /// Parses a wildcard token and records its capture metadata.
     private mutating func parseWildcard() -> String {
         captures.append(.init(kind: .unnamed))
         return "([\\s\\S]*)"
     }
 
+    /// Parses a named parameter token, including optional regex and modifiers.
     private mutating func parseNamedParameter(
         currentOutput: inout String,
         disablePathnamePrefixing: Bool
@@ -203,6 +214,7 @@ private struct Parser {
         )
     }
 
+    /// Returns whether a `:` token starts a named parameter.
     private func shouldParseNamedParameter() -> Bool {
         let next = source.index(after: index)
         guard next < source.endIndex else {
@@ -220,6 +232,7 @@ private struct Parser {
         return character.isLetter || character.isNumber || character == "_" || character == "-"
     }
 
+    /// Parses an unnamed regex group token and optional modifiers.
     private mutating func parseRegexGroup(
         currentOutput: inout String,
         disablePathnamePrefixing: Bool
@@ -237,6 +250,7 @@ private struct Parser {
         )
     }
 
+    /// Parses a raw regex body enclosed by matching parentheses.
     private mutating func parseRawRegexBody() throws -> String {
         guard index < source.endIndex, source[index] == "(" else {
             throw URLPatternError.invalidPattern("Expected '(' for regex group.")
@@ -283,6 +297,7 @@ private struct Parser {
         throw URLPatternError.invalidPattern("Unterminated regex group.")
     }
 
+    /// Parses and consumes a quantifier modifier when present.
     private mutating func parseModifierIfPresent() -> String? {
         guard index < source.endIndex else {
             return nil
@@ -298,6 +313,7 @@ private struct Parser {
         }
     }
 
+    /// Builds a capture expression and applies pathname-aware prefix behavior.
     private func buildCapture(
         name: String?,
         innerPattern: String,
@@ -333,6 +349,7 @@ private struct Parser {
     }
 }
 
+/// Returns the default inner regex for captures in the given component.
 private func defaultPatternForComponent(_ component: URLPattern.Component) -> String {
     switch component {
     case .pathname:
@@ -344,6 +361,7 @@ private func defaultPatternForComponent(_ component: URLPattern.Component) -> St
     }
 }
 
+/// Converts a capture name into a regex-compatible identifier.
 private func sanitizeCaptureName(_ name: String) -> String {
     var sanitized = name.map { character -> Character in
         if character.isLetter || character.isNumber || character == "_" {

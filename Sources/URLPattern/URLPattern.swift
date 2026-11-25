@@ -350,6 +350,15 @@ extension URLPattern {
         var groups: [String: String] = [:]
         var unnamedIndex = 0
         for (offset, capture) in compiled.captures.enumerated() {
+            let key: String
+            switch capture.kind {
+            case .named(let name):
+                key = name
+            case .unnamed:
+                key = String(unnamedIndex)
+                unnamedIndex += 1
+            }
+
             let captureRangeIndex = offset + 1
             guard captureRangeIndex < result.numberOfRanges else {
                 continue
@@ -359,15 +368,7 @@ extension URLPattern {
             guard captureRange.location != NSNotFound else {
                 continue
             }
-            let captureValue = nsString.substring(with: captureRange)
-
-            switch capture.kind {
-            case .named(let name):
-                groups[name] = captureValue
-            case .unnamed:
-                groups[String(unnamedIndex)] = captureValue
-                unnamedIndex += 1
-            }
+            groups[key] = nsString.substring(with: captureRange)
         }
 
         return ComponentResult(input: value, groups: groups)

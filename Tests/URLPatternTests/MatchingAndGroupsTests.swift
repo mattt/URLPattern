@@ -26,6 +26,16 @@ struct MatchingAndGroupsTests {
     }
 
     @Test
+    func unnamedGroupKeepsItsIndexWhenAnEarlierGroupIsAbsent() throws {
+        let pattern = try URLPattern(.init(pathname: "/files/(draft)?/(.+)"))
+        let published = try #require(try pattern.exec("https://example.test/files/report"))
+        let draft = try #require(try pattern.exec("https://example.test/files/draft/report"))
+
+        #expect(published.pathname.groups == ["1": "report"])
+        #expect(draft.pathname.groups == ["0": "draft", "1": "report"])
+    }
+
+    @Test
     func trailingSlashIsNotMatchedByDefault() throws {
         let patternNoSlash = try makePattern("/books")
         #expect(patternNoSlash.test("https://example.com/books"))
